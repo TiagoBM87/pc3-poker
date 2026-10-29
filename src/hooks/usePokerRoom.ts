@@ -100,6 +100,28 @@ export function usePokerRoom(
       });
   }, [enabled, roomId, identityId, identityName, identityRole, room]);
 
+  // If presence is removed while this tab is still open (for example another
+  // tab with the same identity was closed), rejoin instead of staying a ghost.
+  const lastRejoinRef = useRef(0);
+  useEffect(() => {
+    if (!enabled || !room || !identityId || !identityName || !identityRole) return;
+    if (!joinedKeyRef.current) return;
+    if (room.participants[identityId]) return;
+
+    const now = Date.now();
+    if (now - lastRejoinRef.current < 5000) return;
+    lastRejoinRef.current = now;
+
+    roomService
+      .joinRoom(roomId, {
+        id: identityId,
+        name: identityName,
+        role: identityRole,
+        joinedAt: now,
+      })
+      .catch(() => undefined);
+  }, [enabled, room, roomId, identityId, identityName, identityRole]);
+
   // Leave the room when navigating away / closing the view.
   useEffect(() => {
     if (!identityId) return;

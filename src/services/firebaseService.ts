@@ -1,5 +1,6 @@
 import {
   get,
+  goOffline,
   onDisconnect,
   onValue,
   ref,
@@ -27,12 +28,66 @@ function roomPath(roomId: string): string {
   return `rooms/${roomId}`;
 }
 
+let presenceFlushInstalled = false;
+let presenceTarget: { roomId: string; userId: string } | null = null;
+
+const DATABASE_URL = (import.meta.env.VITE_FIREBASE_DATABASE_URL ?? '').replace(/\/+$/, '');
+
+/**
+ * Best-effort DELETE through the REST API. `keepalive` keeps the request alive
+ * while the page is unloading, so presence is cleaned up as soon as the tab
+ * closes instead of waiting for the server to notice a dropped long-poll
+ * connection (which can take over a minute).
+ */
+function flushPresenceOnUnload(): void {
+  const target = presenceTarget;
+  if (!target || !DATABASE_URL) return;
+
+  const paths = [
+    `${roomPath(target.roomId)}/participants/${target.userId}`,
+    `${roomPath(target.roomId)}/votes/${target.userId}`,
+  ];
+
+  for (const path of paths) {
+    try {
+      void fetch(`${DATABASE_URL}/${path}.json`, { method: 'DELETE', keepalive: true }).catch(
+        () => undefined,
+      );
+    } catch {
+      // Ignore: the regular onDisconnect cleanup will still run.
+    }
+  }
+}
+
+function installPresenceFlush(): void {
+  if (presenceFlushInstalled || typeof window === 'undefined') return;
+  presenceFlushInstalled = true;
+
+  window.addEventListener('pagehide', () => {
+    flushPresenceOnUnload();
+    try {
+      // Stop the SDK from trying to reconnect while the page is going away.
+      goOffline(requireDb());
+    } catch {
+      // Firebase not configured: nothing to flush.
+    }
+  });
+
+  // Restoring from the back/forward cache would show a stale room, because the
+  // disconnect cleanup already removed this participant. Reload and rejoin.
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) window.location.reload();
+  });
+}
+
 /**
  * Registers `onDisconnect` cleanup so a participant (and their vote) disappears
  * when the tab is closed or the connection drops.
  */
 async function registerPresence(roomId: string, userId: string): Promise<void> {
   const database = requireDb();
+  installPresenceFlush();
+  presenceTarget = { roomId, userId };
   await Promise.all([
     onDisconnect(ref(database, `${roomPath(roomId)}/participants/${userId}`)).remove(),
     onDisconnect(ref(database, `${roomPath(roomId)}/votes/${userId}`)).remove(),
@@ -41,6 +96,9 @@ async function registerPresence(roomId: string, userId: string): Promise<void> {
 
 async function cancelPresence(roomId: string, userId: string): Promise<void> {
   const database = requireDb();
+  if (presenceTarget?.roomId === roomId && presenceTarget.userId === userId) {
+    presenceTarget = null;
+  }
   await Promise.all([
     onDisconnect(ref(database, `${roomPath(roomId)}/participants/${userId}`)).cancel(),
     onDisconnect(ref(database, `${roomPath(roomId)}/votes/${userId}`)).cancel(),

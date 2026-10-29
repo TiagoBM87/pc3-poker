@@ -85,7 +85,7 @@ export function voteAccent(value: VoteValue): string {
 
 export function formatAverage(value: number | null): string {
   if (value === null) return '—';
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value);
 }
 
 /** Turns technical backend errors into short, actionable messages. */

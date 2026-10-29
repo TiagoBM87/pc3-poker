@@ -46,10 +46,9 @@ export function normalizeRoom(raw: unknown): RoomState | null {
     }
   }
 
-  const hostId =
-    typeof data.metadata.hostId === 'string' && participants[data.metadata.hostId]
-      ? data.metadata.hostId
-      : null;
+  // Keep the stored host id even when that participant is already gone: the
+  // clients need it to detect an abandoned host and claim ownership safely.
+  const hostId = typeof data.metadata.hostId === 'string' ? data.metadata.hostId : null;
 
   return {
     metadata: {

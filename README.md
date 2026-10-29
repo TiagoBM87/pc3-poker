@@ -24,7 +24,7 @@ Aplicação de Planning Poker leve, em tempo real e pensada para squads que trab
 - Link compartilhado sempre pede nome e papel antes de entrar na sala.
 - Estatísticas ao revelar: média, maior, menor, moda e indicação de consenso.
 - Confete automático quando há consenso.
-- Presença: participantes são removidos ao sair da sala ou fechar a aba (Firebase `onDisconnect`).
+- Presença: participantes são removidos ao sair da sala ou fechar a aba. No Firebase, o fechamento da aba limpa a presença na hora (DELETE via REST com `keepalive`), com `onDisconnect` como rede de segurança.
 - Long-polling forçado no Firebase para contornar bloqueio de WebSockets.
 
 ## Rodando localmente
@@ -75,6 +75,8 @@ firebase deploy --only database
 ```
 
 > As regras incluídas são abertas para facilitar o início. Para uso em produção, restrinja por domínio/autenticação e valide os valores dos votos. Como o app é anônimo por design, uma regra simples é limitar `write` ao domínio do GitHub Pages usando `auth` anônimo ou App Check.
+>
+> A liberação vale só para `rooms/{roomId}`: listar todas as salas (`GET /rooms.json`) continua negado, então não é possível descobrir códigos de sala por varredura.
 
 ### Estrutura no banco
 
@@ -135,6 +137,8 @@ src/
 
 - **Votos ocultos:** antes de `isRevealed === true`, o hook expõe apenas quais usuários votaram. O valor do próprio voto fica disponível somente para destacar a carta selecionada no deck. A ocultação é feita no cliente; as regras abertas do banco não impedem que alguém inspecione os votos via API — para sigilo real, use autenticação + regras por usuário.
 - **Host:** não existe papel de moderador na especificação original. O primeiro participante a entrar recebe `metadata.hostId`; somente ele revela/reseta. Se o host sair ou fechar a aba, o participante mais antigo assume via transação atômica (`claimHost`).
+- **Presença na hora:** com long-polling forçado, o `onDisconnect` do Firebase só percebe a queda da conexão depois de ~1 minuto. Por isso, ao fechar a aba (`pagehide`), o app apaga participante e voto via REST com `keepalive` e derruba a conexão (`goOffline`). O `onDisconnect` continua registrado para quedas de rede e crashes. Quem fica na sala detecta a ausência do host e assume na hora.
+- **Host abandonado:** `normalizeRoom` preserva o `hostId` gravado mesmo quando aquele participante já saiu. Sem isso, o valor chegava como `null` ao cliente e a transação de `claimHost` abortava, deixando a sala sem moderador.
 - **Entrada por link:** abrir um link de sala sempre exige confirmar nome e papel (tela `JoinGate`). A confirmação vale para a aba atual (`sessionStorage`), então recarregar a página não pergunta de novo.
 - **Long-polling:** `forceLongPolling()` é chamado antes de `getDatabase()`; é a configuração recomendada para redes que bloqueiam WebSockets.
 - **Sem autenticação:** a identidade é um UUID anônimo salvo no navegador. O link da sala é o segredo de acesso — trate-o como tal.
