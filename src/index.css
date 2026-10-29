@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply min-h-screen bg-felt-950 text-slate-100 antialiased;
+    background-image:
+      radial-gradient(circle at 50% -10%, rgba(26, 90, 62, 0.55), transparent 55%),
+      radial-gradient(circle at 10% 110%, rgba(20, 67, 47, 0.35), transparent 45%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-chip-gold/30 text-white;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-chip-gold/40 ring-offset-2 ring-offset-felt-950;
+  }
+}
+
+@layer components {
+  /* 3D card flip used by UserCard */
+  .flip-card {
+    @apply relative;
+    transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .flip-card.is-flipped {
+    transform: rotateY(180deg);
+  }
+
+  .flip-face {
+    @apply absolute inset-0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .flip-back {
+    transform: rotateY(180deg);
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(231, 182, 75, 0.35) transparent;
+  }
+}
