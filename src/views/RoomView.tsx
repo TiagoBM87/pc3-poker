@@ -135,7 +135,7 @@ export default function RoomView() {
   const allVoted = votersCount > 0 && votedCount === votersCount;
 
   return (
-    <div className="min-h-screen pb-44">
+    <div className="min-h-screen pb-44 lg:pb-48">
       <Header
         title={room.metadata.title}
         roomId={roomId}

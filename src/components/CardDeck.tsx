@@ -43,7 +43,7 @@ export default function CardDeck({
             participa da votação.
           </div>
         ) : (
-          <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 sm:justify-center">
+          <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 sm:justify-center lg:pt-2">
             {CARD_VALUES.map((value) => {
               const active = selected === value;
               return (
