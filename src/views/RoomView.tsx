@@ -200,25 +200,32 @@ export default function RoomView() {
 
         <div
           className={cn(
-            'mt-6 rounded-3xl border border-white/10 bg-felt-900/40 p-5 shadow-table sm:p-8',
-            revealed && 'border-chip-gold/20',
+            'mt-6 gap-6',
+            revealed && poker.stats && 'lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start',
           )}
         >
-          <VoteTable
-            participants={poker.participants}
-            votes={votes}
-            hasVoted={hasVoted}
-            isRevealed={revealed}
-            currentUserId={identity.id}
-            hostId={room.metadata.hostId}
-          />
-        </div>
-
-        {revealed && poker.stats && (
-          <div className="mt-6">
-            <StatsPanel stats={poker.stats} isRevealed={revealed} voteCount={votedCount} />
+          <div
+            className={cn(
+              'rounded-3xl border border-white/10 bg-felt-900/40 p-5 shadow-table sm:p-8',
+              revealed && 'border-chip-gold/20',
+            )}
+          >
+            <VoteTable
+              participants={poker.participants}
+              votes={votes}
+              hasVoted={hasVoted}
+              isRevealed={revealed}
+              currentUserId={identity.id}
+              hostId={room.metadata.hostId}
+            />
           </div>
-        )}
+
+          {revealed && poker.stats && (
+            <div className="mt-6 lg:sticky lg:top-24 lg:mt-0">
+              <StatsPanel stats={poker.stats} isRevealed={revealed} voteCount={votedCount} />
+            </div>
+          )}
+        </div>
       </main>
 
       <CardDeck
