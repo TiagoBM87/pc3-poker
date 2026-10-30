@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Eye, KeyRound, Plus, UserRound } from 'lucide-react';
+import CreditFooter from '../components/CreditFooter';
 import { backendMode, roomService } from '../services/roomService';
 import { cn, createRoomId, describeError, parseRoomId } from '../lib/utils';
 import {
@@ -98,10 +99,10 @@ export default function HomeView() {
           ♠
         </span>
         <h1 className="mt-6 text-4xl font-bold tracking-tight text-white sm:text-5xl">
-          Planning Poker
+          PC3 Poker
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-sm text-slate-300 sm:text-base">
-          Estimativas em tempo real para a sua squad.
+          Simples, leve e gratuito. Crie salas, compartilhe o link e vote com a squad.
         </p>
         {backendMode === 'local' && (
           <p className="mx-auto mt-4 max-w-xl rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-2 text-xs text-amber-200">
@@ -233,6 +234,8 @@ export default function HomeView() {
         Votos ficam ocultos até o host revelar as cartas. O link da sala é o segredo de acesso —
         compartilhe apenas com a squad.
       </p>
+
+      <CreditFooter className="mt-6" />
     </main>
   );
 }

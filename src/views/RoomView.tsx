@@ -7,6 +7,7 @@ import RoundTimer from '../components/RoundTimer';
 import VoteTable from '../components/VoteTable';
 import StatsPanel from '../components/StatsPanel';
 import JoinGate from '../components/JoinGate';
+import CreditFooter from '../components/CreditFooter';
 import { usePokerRoom } from '../hooks/usePokerRoom';
 import { buildRoomLink, cn } from '../lib/utils';
 import {
@@ -247,6 +248,8 @@ export default function RoomView() {
           )}
         </div>
       </main>
+
+      <CreditFooter className="mx-auto mt-2 px-4 pb-2" />
 
       <CardDeck
         selected={poker.myVote}
