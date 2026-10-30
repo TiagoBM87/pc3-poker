@@ -21,6 +21,7 @@ Aplicação de Planning Poker leve, em tempo real e pensada para squads que trab
 - Cartas Fibonacci: `1, 2, 3, 5, 8, 13, 21, ?, ☕`.
 - Votos ocultos até a revelação — ninguém vê o valor dos outros antes da hora.
 - **Host** (primeiro a entrar) controla a revelação e o início de novas rodadas; ao sair, o papel passa para o participante mais antigo.
+- **Timer opcional de 30s por rodada:** o host pode ativar a contagem na barra inferior; todos veem o countdown e as cartas são reveladas automaticamente no fim (o host também pode cancelar ou revelar antes).
 - Link compartilhado sempre pede nome e papel antes de entrar na sala.
 - Estatísticas ao revelar: média, maior, menor, moda e indicação de consenso.
 - Confete automático quando há consenso.
@@ -82,7 +83,7 @@ firebase deploy --only database
 
 ```text
 rooms/{roomId}
-├── metadata/{title, createdAt, isRevealed, hostId}
+├── metadata/{title, createdAt, isRevealed, timerEndsAt, hostId}
 ├── participants/{userId}/{name, role, joinedAt}
 └── votes/{userId} = "1" | "2" | "3" | "5" | "8" | "13" | "21" | "?" | "☕"
 ```
@@ -103,15 +104,18 @@ O `vite.config.ts` usa `base: './'`, então o build funciona tanto em `usuario.g
 ```text
 src/
 ├── components/
-│   ├── CardDeck.tsx      # barra inferior com cartas + revelar/nova rodada
+│   ├── CardDeck.tsx      # barra inferior com cartas + timer/revelar/nova rodada
 │   ├── Header.tsx        # título, contagem, copiar link, sair
 │   ├── JoinGate.tsx      # nome/papel antes de entrar por um link
+│   ├── PlayingCard.tsx   # face de carta de baralho reutilizável
+│   ├── RoundTimer.tsx    # badge com countdown e barra de progresso
 │   ├── StatsPanel.tsx    # média, min, max, moda e confete
 │   ├── UserCard.tsx      # carta com flip 3D por participante
 │   └── VoteTable.tsx     # grade de participantes
 ├── config/
 │   ├── cards.ts          # valores das cartas
-│   └── firebase.ts       # init + long-polling
+│   ├── firebase.ts       # init + long-polling
+│   └── round.ts          # duração do timer da rodada
 ├── hooks/
 │   └── usePokerRoom.ts   # assinatura em tempo real, sanitização e estatísticas
 ├── lib/

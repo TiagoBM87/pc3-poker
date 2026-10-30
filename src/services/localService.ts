@@ -198,6 +198,35 @@ export const setRevealed: RoomService['setRevealed'] = async (roomId, isRevealed
   const room = readRoom(roomId);
   if (!room) return;
   room.metadata.isRevealed = isRevealed;
+  room.metadata.timerEndsAt = null;
+  writeRoom(roomId, room);
+};
+
+export const startRoundTimer: RoomService['startRoundTimer'] = async (roomId, endsAt) => {
+  const room = readRoom(roomId);
+  if (!room || room.metadata.isRevealed) return;
+  room.metadata.timerEndsAt = endsAt;
+  writeRoom(roomId, room);
+};
+
+export const clearRoundTimer: RoomService['clearRoundTimer'] = async (roomId) => {
+  const room = readRoom(roomId);
+  if (!room || room.metadata.timerEndsAt == null) return;
+  room.metadata.timerEndsAt = null;
+  writeRoom(roomId, room);
+};
+
+export const completeRoundTimer: RoomService['completeRoundTimer'] = async (
+  roomId,
+  expectedEndsAt,
+) => {
+  const room = readRoom(roomId);
+  if (!room || room.metadata.isRevealed) return;
+  if (room.metadata.timerEndsAt !== expectedEndsAt) return;
+  if (Date.now() < expectedEndsAt) return;
+
+  room.metadata.isRevealed = true;
+  room.metadata.timerEndsAt = null;
   writeRoom(roomId, room);
 };
 
@@ -205,6 +234,7 @@ export const resetVoting: RoomService['resetVoting'] = async (roomId) => {
   const room = readRoom(roomId);
   if (!room) return;
   room.metadata.isRevealed = false;
+  room.metadata.timerEndsAt = null;
   room.votes = {};
   writeRoom(roomId, room);
 };

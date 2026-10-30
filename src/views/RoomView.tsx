@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, Crown, Eye, Loader2, X } from 'lucide-react';
 import Header from '../components/Header';
 import CardDeck from '../components/CardDeck';
+import RoundTimer from '../components/RoundTimer';
 import VoteTable from '../components/VoteTable';
 import StatsPanel from '../components/StatsPanel';
 import JoinGate from '../components/JoinGate';
@@ -155,12 +156,17 @@ export default function RoomView() {
               {revealed
                 ? 'Confira o resultado e inicie uma nova rodada quando quiser.'
                 : allVoted
-                  ? 'O host já pode revelar as cartas.'
+                  ? poker.timerActive
+                    ? 'Todos votaram! O timer revela as cartas automaticamente no fim.'
+                    : 'O host já pode revelar as cartas.'
                   : `${votedCount} de ${votersCount} votantes já escolheram.`}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {poker.timerActive && poker.timerRemainingMs !== null && (
+              <RoundTimer remainingMs={poker.timerRemainingMs} />
+            )}
             {poker.isHost ? (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-chip-gold/40 bg-chip-gold/10 px-3 py-1 text-xs font-semibold text-chip-gold">
                 <Crown className="h-3.5 w-3.5" />
@@ -206,18 +212,32 @@ export default function RoomView() {
         >
           <div
             className={cn(
-              'rounded-3xl border border-white/10 bg-felt-900/40 p-5 shadow-table sm:p-8',
-              revealed && 'border-chip-gold/20',
+              'casino-table relative overflow-hidden rounded-[2rem] border border-chip-gold/25 p-5 sm:p-8',
+              revealed && 'border-chip-gold/45',
             )}
           >
-            <VoteTable
-              participants={poker.participants}
-              votes={votes}
-              hasVoted={hasVoted}
-              isRevealed={revealed}
-              currentUserId={identity.id}
-              hostId={room.metadata.hostId}
-            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            >
+              <div className="flex select-none items-center gap-5 font-serif text-[5.5rem] leading-none text-white/[0.025] sm:gap-8 sm:text-[9rem]">
+                <span>♠</span>
+                <span className="text-rose-200/[0.04]">♥</span>
+                <span className="text-rose-200/[0.04]">♦</span>
+                <span>♣</span>
+              </div>
+            </div>
+
+            <div className="relative">
+              <VoteTable
+                participants={poker.participants}
+                votes={votes}
+                hasVoted={hasVoted}
+                isRevealed={revealed}
+                currentUserId={identity.id}
+                hostId={room.metadata.hostId}
+              />
+            </div>
           </div>
 
           {revealed && poker.stats && (
@@ -236,9 +256,12 @@ export default function RoomView() {
         votersCount={votersCount}
         canModerate={poker.isHost}
         hostName={poker.hostName}
+        timerActive={poker.timerActive}
         onSelect={poker.castVote}
         onReveal={poker.revealCards}
         onReset={poker.resetRound}
+        onStartTimer={poker.startTimer}
+        onCancelTimer={poker.cancelTimer}
       />
     </div>
   );

@@ -40,7 +40,7 @@ export default function StatsPanel({ stats, isRevealed, voteCount }: StatsPanelP
   ];
 
   return (
-    <section className="animate-fade-up rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl sm:p-6">
+    <section className="animate-fade-up rounded-3xl border border-chip-gold/20 bg-gradient-to-br from-felt-900/80 to-felt-950/90 p-5 shadow-card backdrop-blur-xl sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-white">Resultado da rodada</h2>
@@ -65,7 +65,7 @@ export default function StatsPanel({ stats, isRevealed, voteCount }: StatsPanelP
         {items.map(({ label, value, icon: Icon }) => (
           <div
             key={label}
-            className="rounded-2xl border border-white/10 bg-felt-950/60 p-4 lg:p-3"
+            className="rounded-2xl border border-chip-gold/15 bg-black/30 p-4 lg:p-3"
           >
             <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
               <Icon className="h-3.5 w-3.5" />
@@ -74,7 +74,7 @@ export default function StatsPanel({ stats, isRevealed, voteCount }: StatsPanelP
             <p className="mt-2 text-3xl font-extrabold text-white lg:text-2xl">{value}</p>
           </div>
         ))}
-        <div className="col-span-2 rounded-2xl border border-white/10 bg-felt-950/60 p-4 sm:col-span-1 lg:p-3">
+        <div className="col-span-2 rounded-2xl border border-chip-gold/15 bg-black/30 p-4 sm:col-span-1 lg:p-3">
           <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
             Moda
           </span>

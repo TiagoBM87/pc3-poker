@@ -21,7 +21,7 @@ export default function Header({
   onLeave,
 }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-felt-950/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-chip-gold/20 bg-felt-950/90 shadow-[0_10px_30px_-18px_rgba(0,0,0,0.95)] backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
         <Link
           to="/"

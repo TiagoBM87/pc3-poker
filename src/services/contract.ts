@@ -35,5 +35,17 @@ export interface RoomService {
 
   setRevealed(roomId: string, isRevealed: boolean): Promise<void>;
 
+  /** Starts (or replaces) the auto-reveal timer using an absolute timestamp. */
+  startRoundTimer(roomId: string, endsAt: number): Promise<void>;
+
+  /** Removes the timer without revealing the round. */
+  clearRoundTimer(roomId: string): Promise<void>;
+
+  /**
+   * Reveals the round only if the timer still matches `expectedEndsAt` and the
+   * round has not been revealed yet. Must be safe to call from every client.
+   */
+  completeRoundTimer(roomId: string, expectedEndsAt: number): Promise<void>;
+
   resetVoting(roomId: string): Promise<void>;
 }

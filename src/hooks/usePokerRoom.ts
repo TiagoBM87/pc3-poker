@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ROUND_TIMER_MS } from '../config/round';
 import { calculateStats } from '../lib/stats';
 import { describeError } from '../lib/utils';
 import { roomService } from '../services/roomService';
@@ -21,9 +22,15 @@ export interface UsePokerRoomResult {
   isHost: boolean;
   isObserver: boolean;
   hostName: string | null;
+  /** Optional 30s countdown that reveals the round automatically when it ends. */
+  timerEndsAt: number | null;
+  timerActive: boolean;
+  timerRemainingMs: number | null;
   castVote: (vote: VoteValue | null) => Promise<void>;
   revealCards: () => Promise<void>;
   resetRound: () => Promise<void>;
+  startTimer: () => Promise<void>;
+  cancelTimer: () => Promise<void>;
   clearActionError: () => void;
 }
 
@@ -43,6 +50,7 @@ export function usePokerRoom(
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [, setTimerTick] = useState(0);
   const joinedKeyRef = useRef<string | null>(null);
 
   const identityId = identity?.id ?? null;
@@ -152,6 +160,50 @@ export function usePokerRoom(
   }, [enabled, room, identityId, roomId]);
 
   const revealed = room?.metadata.isRevealed ?? false;
+  const timerEndsAt = room?.metadata.timerEndsAt ?? null;
+  const timerActive = Boolean(timerEndsAt) && !revealed;
+
+  // Re-render the countdown a few times per second, but only while needed.
+  useEffect(() => {
+    if (!timerActive) return;
+
+    const interval = window.setInterval(() => setTimerTick((tick) => tick + 1), 250);
+    return () => window.clearInterval(interval);
+  }, [timerActive, timerEndsAt]);
+
+  const timerRemainingMs =
+    timerActive && timerEndsAt ? Math.max(0, timerEndsAt - Date.now()) : null;
+
+  // Every client races to complete the timer at zero. The service only accepts
+  // the write while the stored timestamp still matches, so the first one wins
+  // and the others become no-ops.
+  useEffect(() => {
+    if (!enabled || !roomId || !timerActive || !timerEndsAt) return;
+
+    let disposed = false;
+    let inFlight = false;
+
+    const attempt = () => {
+      if (disposed || inFlight || Date.now() < timerEndsAt) return;
+      inFlight = true;
+      roomService
+        .completeRoundTimer(roomId, timerEndsAt)
+        .catch(() => undefined)
+        .finally(() => {
+          inFlight = false;
+        });
+    };
+
+    const timeout = window.setTimeout(attempt, Math.max(0, timerEndsAt - Date.now()));
+    const interval = window.setInterval(attempt, 1000);
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(timeout);
+      window.clearInterval(interval);
+    };
+  }, [enabled, roomId, timerActive, timerEndsAt]);
+
   const rawVotes = useMemo(() => room?.votes ?? {}, [room]);
   const votedUserIds = useMemo(() => Object.keys(rawVotes), [rawVotes]);
   const myVote = identityId ? rawVotes[identityId] ?? null : null;
@@ -213,6 +265,24 @@ export function usePokerRoom(
     }
   }, [roomId]);
 
+  const startTimer = useCallback(async () => {
+    setActionError(null);
+    try {
+      await roomService.startRoundTimer(roomId, Date.now() + ROUND_TIMER_MS);
+    } catch (timerError) {
+      setActionError(describeError(timerError));
+    }
+  }, [roomId]);
+
+  const cancelTimer = useCallback(async () => {
+    setActionError(null);
+    try {
+      await roomService.clearRoundTimer(roomId);
+    } catch (timerError) {
+      setActionError(describeError(timerError));
+    }
+  }, [roomId]);
+
   const clearActionError = useCallback(() => setActionError(null), []);
 
   return {
@@ -229,9 +299,14 @@ export function usePokerRoom(
     isHost: Boolean(identityId && hostId === identityId),
     isObserver: identityRole === 'OBSERVER',
     hostName,
+    timerEndsAt,
+    timerActive,
+    timerRemainingMs,
     castVote,
     revealCards,
     resetRound,
+    startTimer,
+    cancelTimer,
     clearActionError,
   };
 }

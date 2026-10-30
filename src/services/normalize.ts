@@ -15,6 +15,7 @@ interface RawRoom {
     title?: unknown;
     createdAt?: unknown;
     isRevealed?: unknown;
+    timerEndsAt?: unknown;
     hostId?: unknown;
   };
   participants?: Record<string, RawParticipant>;
@@ -55,6 +56,12 @@ export function normalizeRoom(raw: unknown): RoomState | null {
       title: typeof data.metadata.title === 'string' ? data.metadata.title : 'Planning Poker',
       createdAt: typeof data.metadata.createdAt === 'number' ? data.metadata.createdAt : 0,
       isRevealed: data.metadata.isRevealed === true,
+      timerEndsAt:
+        typeof data.metadata.timerEndsAt === 'number' &&
+        Number.isFinite(data.metadata.timerEndsAt) &&
+        data.metadata.timerEndsAt > 0
+          ? data.metadata.timerEndsAt
+          : null,
       hostId,
     },
     participants,

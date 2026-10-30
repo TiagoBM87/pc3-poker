@@ -1,6 +1,7 @@
 import { Clock3, Crown, Eye, Minus } from 'lucide-react';
 import { cn, avatarGradient, initials } from '../lib/utils';
 import type { Participant, VoteValue } from '../types/poker';
+import PlayingCard from './PlayingCard';
 
 interface UserCardProps {
   participant: Participant;
@@ -20,67 +21,92 @@ export default function UserCard({
   isHost = false,
 }: UserCardProps) {
   const isObserver = participant.role === 'OBSERVER';
-  const showVote = isRevealed && Boolean(vote);
-  const showEmptyResult = isRevealed && !vote;
+  const shouldFlip = isRevealed && !isObserver;
+  const showVote = shouldFlip && Boolean(vote);
 
   return (
     <div className="flex animate-fade-up flex-col items-center gap-3">
       <div className="relative">
-        <div className={cn('flip-card h-28 w-20', showVote && 'is-flipped')}>
+        <div className={cn('flip-card h-28 w-20', shouldFlip && 'is-flipped')}>
           <div
             className={cn(
-              'flip-face flex flex-col items-center justify-center gap-2 rounded-2xl border p-2',
+              'flip-face overflow-hidden rounded-xl border-2 shadow-card',
               isObserver
-                ? 'border-dashed border-white/15 bg-white/[0.03]'
-                : hasVoted
-                  ? 'border-emerald-400/40 bg-gradient-to-br from-emerald-500/25 via-emerald-400/10 to-felt-900 shadow-lg shadow-emerald-950/40'
-                  : 'border-dashed border-white/15 bg-white/[0.03]',
+                ? 'border-white/20 bg-felt-800'
+                : 'border-[#d9b75c]/80 bg-[#102446]',
             )}
           >
-            {isObserver ? (
-              <>
-                <Eye className="h-5 w-5 text-slate-500" />
-                <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                  Observando
-                </span>
-              </>
-            ) : showEmptyResult ? (
-              <>
-                <Minus className="h-5 w-5 text-slate-600" />
-                <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                  Sem voto
-                </span>
-              </>
-            ) : (
-              <>
-                <span
-                  className={cn(
-                    'flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-white shadow-inner',
-                    avatarGradient(participant.name),
-                    !hasVoted && 'opacity-70 grayscale',
-                  )}
-                >
-                  {initials(participant.name)}
-                </span>
-                {hasVoted ? (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-200">
-                    Votou
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500">
-                    <Clock3 className="h-3 w-3" />
-                    Pensando
-                  </span>
-                )}
-              </>
+            <div
+              className={cn(
+                'card-back-pattern absolute inset-1 rounded-[7px]',
+                isObserver
+                  ? 'border border-white/20 opacity-40 grayscale'
+                  : 'border border-chip-gold/45',
+              )}
+            />
+
+            {!isObserver && (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 flex items-center justify-center font-serif text-6xl leading-none text-chip-gold/20"
+              >
+                ♠
+              </span>
             )}
+
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-2">
+              {isObserver ? (
+                <>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-felt-950/80 text-slate-300">
+                    <Eye className="h-5 w-5" />
+                  </span>
+                  <span className="rounded-full bg-felt-950/80 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-slate-300">
+                    Observando
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span
+                    className={cn(
+                      'flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-white shadow-inner ring-2 ring-chip-gold/80',
+                      avatarGradient(participant.name),
+                      !hasVoted && 'opacity-75 grayscale',
+                    )}
+                  >
+                    {initials(participant.name)}
+                  </span>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider shadow',
+                      hasVoted
+                        ? 'bg-gradient-to-r from-emerald-400 to-emerald-500 text-emerald-950 ring-1 ring-white/30'
+                        : 'bg-black/55 text-amber-100 ring-1 ring-chip-gold/35 backdrop-blur',
+                    )}
+                  >
+                    {hasVoted ? (
+                      'Votou'
+                    ) : (
+                      <>
+                        <Clock3 className="h-2.5 w-2.5" />
+                        Pensando
+                      </>
+                    )}
+                  </span>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="flip-face flip-back flex flex-col items-center justify-center rounded-2xl border border-amber-200/60 bg-gradient-to-br from-white to-slate-100 shadow-xl shadow-black/40">
-            <span className="text-3xl font-extrabold text-felt-950">{vote}</span>
-            <span className="mt-1 text-[9px] font-semibold uppercase tracking-widest text-slate-400">
-              voto
-            </span>
+          <div className="flip-face flip-back">
+            {showVote && vote ? (
+              <PlayingCard value={vote} size="sm" className="h-full w-full rounded-xl" />
+            ) : (
+              <div className="card-face-texture relative flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#c9b78f] bg-[#fffaf0] text-slate-500 shadow-card">
+                <div className="pointer-events-none absolute inset-[4px] rounded-lg border border-chip-gold/20" />
+                <Minus className="h-5 w-5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide">Sem voto</span>
+              </div>
+            )}
           </div>
         </div>
 

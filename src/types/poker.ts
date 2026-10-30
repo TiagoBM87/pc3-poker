@@ -13,6 +13,11 @@ export interface RoomMetadata {
   createdAt: number;
   isRevealed: boolean;
   /**
+   * Absolute timestamp (ms) when the optional round timer expires. While set,
+   * every client counts down and the first one to reach zero reveals the cards.
+   */
+  timerEndsAt?: number | null;
+  /**
    * Participant allowed to reveal/reset the round. It is the first person to
    * enter the room and is handed over to the earliest remaining participant
    * when the host leaves.

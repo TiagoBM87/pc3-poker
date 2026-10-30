@@ -242,13 +242,47 @@ export const castVote: RoomService['castVote'] = async (roomId, userId, value) =
 
 export const setRevealed: RoomService['setRevealed'] = async (roomId, isRevealed) => {
   const database = requireDb();
-  await update(ref(database, `${roomPath(roomId)}/metadata`), { isRevealed });
+  await update(ref(database, `${roomPath(roomId)}/metadata`), {
+    isRevealed,
+    timerEndsAt: null,
+  });
+};
+
+export const startRoundTimer: RoomService['startRoundTimer'] = async (roomId, endsAt) => {
+  const database = requireDb();
+  await runTransaction(ref(database, `${roomPath(roomId)}/metadata`), (current) => {
+    if (!current || typeof current !== 'object') return current;
+    const metadata = current as Record<string, unknown>;
+    if (metadata.isRevealed === true) return current;
+    return { ...metadata, timerEndsAt: endsAt };
+  });
+};
+
+export const clearRoundTimer: RoomService['clearRoundTimer'] = async (roomId) => {
+  const database = requireDb();
+  await update(ref(database, `${roomPath(roomId)}/metadata`), { timerEndsAt: null });
+};
+
+export const completeRoundTimer: RoomService['completeRoundTimer'] = async (
+  roomId,
+  expectedEndsAt,
+) => {
+  const database = requireDb();
+  await runTransaction(ref(database, `${roomPath(roomId)}/metadata`), (current) => {
+    if (!current || typeof current !== 'object') return current;
+    const metadata = current as Record<string, unknown>;
+    if (metadata.isRevealed === true) return current;
+    if (metadata.timerEndsAt !== expectedEndsAt) return current;
+    if (Date.now() < expectedEndsAt) return current;
+    return { ...metadata, isRevealed: true, timerEndsAt: null };
+  });
 };
 
 export const resetVoting: RoomService['resetVoting'] = async (roomId) => {
   const database = requireDb();
   await update(ref(database, roomPath(roomId)), {
     'metadata/isRevealed': false,
+    'metadata/timerEndsAt': null,
     votes: null,
   });
 };

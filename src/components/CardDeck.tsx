@@ -1,7 +1,8 @@
-import { Eye, Lock, RotateCcw, Sparkles } from 'lucide-react';
+import { Check, Eye, Lock, RotateCcw, Sparkles, Timer, TimerOff } from 'lucide-react';
 import { CARD_VALUES, SPECIAL_CARD_LABELS } from '../config/cards';
 import { cn } from '../lib/utils';
 import type { VoteValue } from '../types/poker';
+import PlayingCard from './PlayingCard';
 
 interface CardDeckProps {
   selected: VoteValue | null;
@@ -13,9 +14,12 @@ interface CardDeckProps {
   /** Only the host can reveal/reset. */
   canModerate: boolean;
   hostName: string | null;
+  timerActive: boolean;
   onSelect: (value: VoteValue | null) => void;
   onReveal: () => void;
   onReset: () => void;
+  onStartTimer: () => void;
+  onCancelTimer: () => void;
 }
 
 export default function CardDeck({
@@ -26,24 +30,27 @@ export default function CardDeck({
   votersCount,
   canModerate,
   hostName,
+  timerActive,
   onSelect,
   onReveal,
   onReset,
+  onStartTimer,
+  onCancelTimer,
 }: CardDeckProps) {
   const canReveal = canModerate && votedCount > 0 && !isRevealed;
   const canReset = canModerate && (votedCount > 0 || isRevealed);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-felt-950/95 backdrop-blur-xl">
+    <div className="casino-rail fixed inset-x-0 bottom-0 z-40 border-t border-chip-gold/35">
       <div className="mx-auto max-w-6xl px-4 pb-4 pt-3 sm:px-6">
         {disabled ? (
-          <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-3 text-xs text-slate-400">
+          <div className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-chip-gold/20 bg-black/20 px-4 py-3 text-xs text-slate-400">
             <Eye className="h-4 w-4 text-slate-500" />
             Você entrou como <span className="font-semibold text-slate-200">observador</span> e não
             participa da votação.
           </div>
         ) : (
-          <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 pt-2 sm:justify-center">
+          <div className="-mx-1 flex items-end gap-1.5 overflow-x-auto px-1 pb-2 pt-3 sm:justify-center sm:gap-2">
             {CARD_VALUES.map((value) => {
               const active = selected === value;
               return (
@@ -54,21 +61,22 @@ export default function CardDeck({
                   aria-pressed={active}
                   title={SPECIAL_CARD_LABELS[value] ?? `Estimar em ${value}`}
                   className={cn(
-                    'group relative flex h-16 w-12 shrink-0 flex-col items-center justify-center rounded-xl border text-lg font-bold transition-all duration-200 sm:h-20 sm:w-14 sm:text-xl',
-                    active
-                      ? '-translate-y-1 border-amber-200 bg-gradient-to-br from-amber-300 to-yellow-500 text-felt-950 shadow-lg shadow-amber-500/30'
-                      : 'border-white/10 bg-white/[0.04] text-slate-300 hover:-translate-y-0.5 hover:border-chip-gold/40 hover:bg-chip-gold/10 hover:text-white',
+                    'group relative shrink-0 rounded-[12px] transition-transform duration-200',
+                    active ? '-translate-y-2' : 'hover:-translate-y-1',
                   )}
                 >
-                  {value}
-                  {SPECIAL_CARD_LABELS[value] && (
-                    <span
-                      className={cn(
-                        'mt-0.5 text-[8px] font-semibold uppercase tracking-wider',
-                        active ? 'text-felt-900' : 'text-slate-500 group-hover:text-amber-200',
-                      )}
-                    >
-                      {SPECIAL_CARD_LABELS[value]}
+                  <PlayingCard
+                    value={value}
+                    className={cn(
+                      'h-20 w-14 transition-shadow sm:h-24 sm:w-[4.25rem]',
+                      active
+                        ? 'ring-2 ring-amber-300 shadow-[0_18px_32px_-10px_rgba(231,182,75,0.6)]'
+                        : 'group-hover:ring-2 group-hover:ring-chip-gold/60 group-hover:shadow-[0_18px_28px_-12px_rgba(0,0,0,0.9)]',
+                    )}
+                  />
+                  {active && (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-felt-950 bg-amber-300 text-felt-950 shadow">
+                      <Check className="h-3 w-3" strokeWidth={3} />
                     </span>
                   )}
                 </button>
@@ -86,37 +94,61 @@ export default function CardDeck({
             ) : (
               'Escolha uma carta para votar.'
             )}
-            <span className="ml-2 text-slate-600">
+            <span className="ml-2 text-chip-gold/60">
               {votedCount}/{votersCount} votos
             </span>
             {!canModerate && (
               <span className="ml-3 inline-flex items-center gap-1 text-amber-300/80">
                 <Lock className="h-3 w-3" />
-                Só o host{hostName ? ` (${hostName})` : ''} revela ou reinicia
+                Só o host{hostName ? ` (${hostName})` : ''} revela, reinicia ou controla o timer
               </span>
             )}
           </p>
 
           <div className="flex w-full gap-2 sm:w-auto">
+            {canModerate && !isRevealed && (
+              <button
+                type="button"
+                onClick={timerActive ? onCancelTimer : onStartTimer}
+                title={
+                  timerActive
+                    ? 'Cancelar o timer desta rodada'
+                    : 'Iniciar timer de 30 segundos e revelar as cartas no final'
+                }
+                className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-chip-gold/25 bg-black/25 px-2 py-2.5 text-[11px] font-semibold text-amber-100/90 transition hover:border-chip-gold/50 hover:bg-chip-gold/10 sm:flex-none sm:gap-2 sm:px-4 sm:text-sm"
+              >
+                {timerActive ? (
+                  <TimerOff className="h-4 w-4" />
+                ) : (
+                  <Timer className="h-4 w-4" />
+                )}
+                <span className="sm:hidden">{timerActive ? 'Cancelar' : 'Timer'}</span>
+                <span className="hidden sm:inline">
+                  {timerActive ? 'Cancelar timer' : 'Timer 30s'}
+                </span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onReset}
               disabled={!canReset}
               title={canModerate ? 'Iniciar nova rodada' : 'Apenas o host pode iniciar nova rodada'}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-white/20 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-chip-gold/20 bg-black/25 px-2 py-2.5 text-[11px] font-semibold text-amber-50/90 transition hover:border-chip-gold/45 hover:bg-chip-gold/10 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none sm:gap-2 sm:px-4 sm:text-sm"
             >
               <RotateCcw className="h-4 w-4" />
-              Nova rodada
+              <span className="sm:hidden">Reiniciar</span>
+              <span className="hidden sm:inline">Nova rodada</span>
             </button>
             <button
               type="button"
               onClick={onReveal}
               disabled={!canReveal}
               title={canModerate ? 'Revelar cartas' : 'Apenas o host pode revelar as cartas'}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-300 to-yellow-500 px-4 py-2.5 text-sm font-bold text-felt-950 shadow-lg shadow-amber-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none sm:flex-none"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-gradient-to-r from-amber-300 to-yellow-500 px-2 py-2.5 text-[11px] font-bold text-felt-950 shadow-lg shadow-amber-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none sm:flex-none sm:gap-2 sm:px-4 sm:text-sm"
             >
               <Sparkles className="h-4 w-4" />
-              Revelar cartas
+              <span className="sm:hidden">Revelar</span>
+              <span className="hidden sm:inline">Revelar cartas</span>
             </button>
           </div>
         </div>
