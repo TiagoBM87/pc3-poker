@@ -3,8 +3,8 @@ import type { RoomStats, VoteValue } from '../types/poker';
 
 /**
  * Statistics only make sense after the reveal, and only numeric cards feed
- * average/min/max. Consensus requires at least two numeric votes and all of
- * them to be identical.
+ * average/min/max. Consensus means every cast vote is the same numeric card,
+ * so a single voter already counts as consensus.
  */
 export function calculateStats(votes: Record<string, VoteValue>): RoomStats {
   const values = Object.values(votes);
@@ -26,7 +26,7 @@ export function calculateStats(votes: Record<string, VoteValue>): RoomStats {
     .map(([value]) => value);
 
   const hasConsensus =
-    numericValues.length >= 2 &&
+    numericValues.length > 0 &&
     numericValues.length === values.length &&
     numericValues.every((value) => value === numericValues[0]);
 

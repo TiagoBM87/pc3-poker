@@ -101,8 +101,7 @@ export default function HomeView() {
           Planning Poker
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-sm text-slate-300 sm:text-base">
-          Estimativas em tempo real para a sua squad. Sem backend próprio, funciona atrás de VPN
-          corporativa e sem cadastro.
+          Estimativas em tempo real para a sua squad.
         </p>
         {backendMode === 'local' && (
           <p className="mx-auto mt-4 max-w-xl rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-2 text-xs text-amber-200">
