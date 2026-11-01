@@ -11,3 +11,6 @@ dist-ssr
 .vite
 .firebase
 .idea/
+
+# SDD: specs locais de implementação (não versionar por enquanto)
+specs/

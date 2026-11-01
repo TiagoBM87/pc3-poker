@@ -96,6 +96,8 @@ rooms/{roomId}
 
 A documentação detalhada de cada campo, do ciclo de vida dos dados e das limitações de segurança está em [`docs/banco-de-dados.md`](docs/banco-de-dados.md).
 
+O fluxo de execução, com diagramas Mermaid de navegação, criação/entrada na sala, votação, revelação, timer e presença, está em [`docs/fluxo-de-execucao.md`](docs/fluxo-de-execucao.md).
+
 ## Deploy no GitHub Pages
 
 O workflow `.github/workflows/deploy.yml` faz build e publica `dist/` no branch `gh-pages` a cada push em `main`.
