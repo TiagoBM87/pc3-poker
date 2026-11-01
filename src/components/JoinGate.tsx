@@ -8,7 +8,7 @@ interface JoinGateProps {
   roomId: string;
   defaultName?: string;
   defaultRole?: UserRole;
-  onJoin: (name: string, role: UserRole) => void;
+  onJoin: (name: string, role: UserRole) => void | Promise<void>;
 }
 
 /**
@@ -25,7 +25,7 @@ export default function JoinGate({
   const [role, setRole] = useState<UserRole>(defaultRole);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = name.trim();
     if (trimmed.length < 2) {
@@ -33,7 +33,15 @@ export default function JoinGate({
       return;
     }
     setError(null);
-    onJoin(trimmed, role);
+    try {
+      await onJoin(trimmed, role);
+    } catch (joinError) {
+      setError(
+        joinError instanceof Error && joinError.message.trim().length > 0
+          ? joinError.message
+          : 'Não foi possível entrar na sala. Tente novamente.',
+      );
+    }
   };
 
   return (
