@@ -4,6 +4,12 @@ Aplicação de Planning Poker leve, em tempo real e pensada para squads que trab
 
 > **Modo demo:** sem variáveis de ambiente do Firebase, o app roda automaticamente com um backend local (`localStorage` + `BroadcastChannel`), permitindo testar o fluxo completo entre abas do mesmo navegador.
 
+## Desenvolvido com
+
+Este projeto foi criado com o [OpenCode](https://opencode.ai), utilizando o modelo **Big Pickle**.
+
+Desenvolvido por [TiagoBM87](https://github.com/TiagoBM87).
+
 ## Stack
 
 - React 18 + TypeScript
