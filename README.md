@@ -94,6 +94,8 @@ rooms/{roomId}
 └── votes/{userId} = "1" | "2" | "3" | "5" | "8" | "13" | "21" | "?" | "☕"
 ```
 
+A documentação detalhada de cada campo, do ciclo de vida dos dados e das limitações de segurança está em [`docs/banco-de-dados.md`](docs/banco-de-dados.md).
+
 ## Deploy no GitHub Pages
 
 O workflow `.github/workflows/deploy.yml` faz build e publica `dist/` no branch `gh-pages` a cada push em `main`.
