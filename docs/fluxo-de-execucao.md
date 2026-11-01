@@ -90,7 +90,7 @@ sequenceDiagram
     H->>H: navigate(/room/roomId)
 ```
 
-O `roomId` é `slug(título)-sufixoAleatório`. Se houver colisão, o `HomeView` tenta novamente (até 3 vezes). O criador já nasce como `hostId` e como primeiro participante.
+O `roomId` é um token aleatório de 26 caracteres base32 (~130 bits), sem relação com o título. Se houver colisão, o `HomeView` tenta novamente (até 3 vezes). O criador já nasce como `hostId` e como primeiro participante.
 
 ---
 

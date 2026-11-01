@@ -21,7 +21,7 @@ Desenvolvido por [TiagoBM87](https://github.com/TiagoBM87).
 
 ## Funcionalidades
 
-- Criar sala com código único gerado a partir do título (ex.: `sprint-planning-a4k9`).
+- Criar sala com código aleatório e não adivinhável (26 caracteres).
 - Entrar por código ou link completo.
 - Papéis de **votante** e **observador**.
 - Cartas Fibonacci: `1, 2, 3, 5, 8, 13, 21, ?, ☕`.
@@ -131,7 +131,7 @@ src/
 ├── lib/
 │   ├── identity.ts       # identidade anônima persistida
 │   ├── stats.ts          # cálculo de média/moda/consenso
-│   └── utils.ts          # cn, slugs, links, avatares
+│   └── utils.ts          # cn, room ids, links, avatares
 ├── services/
 │   ├── contract.ts       # interface do backend
 │   ├── firebaseService.ts# implementação Realtime Database

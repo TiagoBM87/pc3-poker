@@ -46,11 +46,12 @@ export default function HomeView() {
       let roomId = '';
       let created = false;
       for (let attempt = 0; attempt < 3 && !created; attempt += 1) {
-        roomId = createRoomId(roomTitle);
+        roomId = createRoomId();
         created = await roomService.createRoom(roomId, roomTitle, toParticipant(identity));
       }
       if (!created) {
-        throw new Error('Não foi possível gerar um código de sala. Tente novamente.');
+        setError('Não foi possível gerar um código de sala. Tente novamente.');
+        return;
       }
 
       markRoomEntryConfirmed(roomId);
@@ -69,7 +70,7 @@ export default function HomeView() {
 
     const roomId = parseRoomId(joinCode);
     if (!roomId) {
-      setError('Código ou link inválido. Cole o link da sala ou o código (ex.: sprint-45-a4k9).');
+      setError('Código ou link inválido. Cole o link da sala ou o código compartilhado.');
       return;
     }
 
@@ -215,7 +216,7 @@ export default function HomeView() {
             <input
               value={joinCode}
               onChange={(event) => setJoinCode(event.target.value)}
-              placeholder="sprint-45-a4k9 ou link completo"
+              placeholder="Código da sala ou link completo"
               className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-chip-gold/50 focus:outline-none focus:ring-2 focus:ring-chip-gold/20"
             />
             <button
