@@ -28,7 +28,7 @@ Exemplo real:
 ```json
 {
   "rooms": {
-    "refinamento-sprint-45-a7k2": {
+    "k7m2q9x4t8b3n6v5c2z9w4r7p8": {
       "metadata": {
         "title": "Refinamento - Sprint 45",
         "createdAt": 1700000000000,
@@ -47,7 +47,7 @@ Exemplo real:
 }
 ```
 
-O `roomId` é gerado a partir do título + sufixo aleatório (`createRoomId` em `src/lib/utils.ts`), por exemplo `refinamento-sprint-45-a7k2`.
+O `roomId` é um token aleatório de 26 caracteres base32 (~130 bits) gerado por `createRoomId` em `src/lib/utils.ts`; ele **não** deriva do título. Links antigos no formato `slug-sufixo` continuam válidos para leitura.
 
 > Em modo local (sem variáveis do Firebase), a mesma estrutura é gravada no `localStorage` sob a chave `pp:room:{roomId}` — veja `src/services/localService.ts`.
 

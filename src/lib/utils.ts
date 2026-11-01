@@ -6,33 +6,46 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function slugify(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 32);
-}
+/** Base32 alphabet without look-alike characters (no `l`, `o`, `0`, `1`). */
+export const ROOM_ID_ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';
 
-function randomSuffix(length = 4): string {
-  const alphabet = 'abcdefghijkmnpqrstuvwxyz23456789';
-  let result = '';
-  for (let i = 0; i < length; i += 1) {
-    result += alphabet[Math.floor(Math.random() * alphabet.length)];
+/** 26 base32 characters ≈ 130 bits of entropy. */
+export const ROOM_ID_LENGTH = 26;
+
+/**
+ * Generates an unguessable room id. Uses `crypto.getRandomValues` with
+ * rejection sampling so every character is uniformly distributed, and never
+ * derives the id from the room title (that would leak it in the URL).
+ */
+export function createRoomId(): string {
+  const random = globalThis.crypto;
+  if (!random?.getRandomValues) {
+    throw new Error('Este navegador não suporta geração segura de códigos de sala.');
   }
-  return result;
-}
 
-export function createRoomId(title: string): string {
-  const base = slugify(title) || 'sala';
-  return `${base}-${randomSuffix()}`;
+  const alphabetLength = ROOM_ID_ALPHABET.length;
+  const maxUnbiased = 256 - (256 % alphabetLength);
+  const buffer = new Uint8Array(ROOM_ID_LENGTH);
+  let roomId = '';
+
+  while (roomId.length < ROOM_ID_LENGTH) {
+    random.getRandomValues(buffer);
+    for (const byte of buffer) {
+      if (byte >= maxUnbiased) continue;
+      roomId += ROOM_ID_ALPHABET[byte % alphabetLength];
+      if (roomId.length === ROOM_ID_LENGTH) break;
+    }
+  }
+
+  return roomId;
 }
 
 /**
  * Accepts a raw room code, a hash URL (`#/room/abc`) or a full URL and
  * returns the room id, or null when nothing valid can be extracted.
+ *
+ * The `[a-zA-Z0-9_-]{3,64}` format is intentionally kept so links created by
+ * older versions (`slug-4chars`) keep working after the id format changes.
  */
 export function parseRoomId(input: string): string | null {
   const trimmed = input.trim();
