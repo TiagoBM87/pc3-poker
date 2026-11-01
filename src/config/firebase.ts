@@ -7,6 +7,7 @@ import {
   type Auth,
   type User,
 } from 'firebase/auth';
+import { authErrorMessage, authTechnicalHint } from './authErrors';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -58,6 +59,15 @@ if (isFirebaseConfigured) {
 export const db = database;
 export const firebaseAuth = auth;
 
+/**
+ * Current authenticated `uid`, or `null` before the session is restored.
+ * Used as the only trustworthy identity source in Firebase mode — a value
+ * stored by the browser is never trusted.
+ */
+export function getAuthUid(): string | null {
+  return auth?.currentUser?.uid ?? null;
+}
+
 /** Error with a Firebase auth code and a message that is safe to show. */
 export class AnonymousAuthError extends Error {
   readonly code: string;
@@ -69,36 +79,21 @@ export class AnonymousAuthError extends Error {
   }
 }
 
-function authErrorMessage(code: string): string {
-  switch (code) {
-    case 'auth/operation-not-allowed':
-    case 'auth/admin-restricted-operation':
-      return 'O login anônimo está desativado no Firebase. Ative em Authentication → Sign-in method → Anonymous e recarregue a página.';
-    case 'auth/configuration-not-found':
-      return 'O Firebase Authentication ainda não foi configurado neste projeto. Abra o Console → Authentication, clique em "Vamos começar" e ative o método Anonymous.';
-    case 'auth/network-request-failed':
-      return 'Não foi possível conectar ao Firebase para iniciar a sessão. Verifique sua rede/VPN e tente novamente.';
-    case 'auth/timeout':
-      return 'A autenticação está demorando mais que o esperado. Verifique sua conexão e tente novamente.';
-    case 'auth/too-many-requests':
-      return 'Muitas tentativas de acesso. Aguarde alguns minutos e tente novamente.';
-    case 'auth/unauthorized-domain':
-      return 'Este domínio não está autorizado no Firebase Authentication.';
-    case 'auth/api-key-not-valid':
-    case 'auth/invalid-api-key':
-      return 'Configuração do Firebase inválida (API key). Confira as variáveis VITE_FIREBASE_*.';
-    case 'auth/not-configured':
-      return 'Firebase não configurado. Preencha as variáveis VITE_FIREBASE_* no arquivo .env.';
-    default:
-      return 'Não foi possível iniciar a sessão anônima. Tente novamente.';
-  }
+/**
+ * Builds the error shown by the UI and logs the actionable hint for whoever is
+ * debugging. Tokens, uids and environment values are never logged.
+ */
+function newAuthError(code: string): AnonymousAuthError {
+  const hint = authTechnicalHint(code);
+  if (hint) console.error(`[auth] ${code}: ${hint}`);
+  return new AnonymousAuthError(code, authErrorMessage(code));
 }
 
 function toAnonymousAuthError(error: unknown): AnonymousAuthError {
   if (error instanceof AnonymousAuthError) return error;
   const code = (error as { code?: unknown } | null)?.code;
   const normalized = typeof code === 'string' && code.length > 0 ? code : 'auth/unknown';
-  return new AnonymousAuthError(normalized, authErrorMessage(normalized));
+  return newAuthError(normalized);
 }
 
 /**
@@ -129,7 +124,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       const code = 'auth/timeout';
-      reject(new AnonymousAuthError(code, authErrorMessage(code)));
+      reject(newAuthError(code));
     }, ms);
 
     promise.then(
@@ -157,7 +152,7 @@ let authPromise: Promise<string> | null = null;
 export function ensureAnonymousAuth(): Promise<string> {
   if (!auth) {
     const code = 'auth/not-configured';
-    return Promise.reject(new AnonymousAuthError(code, authErrorMessage(code)));
+    return Promise.reject(newAuthError(code));
   }
 
   const firebaseAuth = auth;
