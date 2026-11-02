@@ -10,8 +10,10 @@ import {
   update,
   type Database,
 } from 'firebase/database';
-import { db } from '../config/firebase';
+import { db, getAppCheckToken, getCachedIdToken } from '../config/firebase';
 import type { RoomState } from '../types/poker';
+import { resolveHostId } from '../lib/host';
+import { buildPresenceDeleteHeaders, buildPresenceDeleteUrl } from '../lib/presence';
 import type { RoomService } from './contract';
 import { normalizeRoom, toStoredParticipant } from './normalize';
 
@@ -34,28 +36,33 @@ let presenceTarget: { roomId: string; userId: string } | null = null;
 const DATABASE_URL = (import.meta.env.VITE_FIREBASE_DATABASE_URL ?? '').replace(/\/+$/, '');
 
 /**
- * Best-effort DELETE through the REST API. `keepalive` keeps the request alive
- * while the page is unloading, so presence is cleaned up as soon as the tab
- * closes instead of waiting for the server to notice a dropped long-poll
- * connection (which can take over a minute).
+ * Best-effort DELETE of the presence node through the REST API. `keepalive`
+ * keeps the request alive while the page is unloading, so presence is cleaned
+ * up as soon as the tab closes instead of waiting for the server to notice a
+ * dropped long-poll connection (which can take over a minute).
+ *
+ * Only `participants/{uid}` is removed. The vote is intentionally kept so a
+ * reload restores it — the identity (Auth `uid`) is stable across reloads.
+ * Votes left behind by a closed tab are ignored by the UI while that
+ * participant is absent and are removed on an explicit leave or on reset.
+ *
+ * The request carries the cached ID token (and the App Check token when F4-T1
+ * wires it). Without a token the unload is not blocked and the regular
+ * `onDisconnect` cleanup takes over.
  */
 function flushPresenceOnUnload(): void {
   const target = presenceTarget;
-  if (!target || !DATABASE_URL) return;
+  const idToken = getCachedIdToken();
+  if (!target || !DATABASE_URL || !idToken) return;
 
-  const paths = [
-    `${roomPath(target.roomId)}/participants/${target.userId}`,
-    `${roomPath(target.roomId)}/votes/${target.userId}`,
-  ];
-
-  for (const path of paths) {
-    try {
-      void fetch(`${DATABASE_URL}/${path}.json`, { method: 'DELETE', keepalive: true }).catch(
-        () => undefined,
-      );
-    } catch {
-      // Ignore: the regular onDisconnect cleanup will still run.
-    }
+  try {
+    void fetch(buildPresenceDeleteUrl(DATABASE_URL, target.roomId, target.userId, idToken), {
+      method: 'DELETE',
+      keepalive: true,
+      headers: buildPresenceDeleteHeaders(getAppCheckToken()),
+    }).catch(() => undefined);
+  } catch {
+    // Ignore: the regular onDisconnect cleanup will still run.
   }
 }
 
@@ -81,17 +88,14 @@ function installPresenceFlush(): void {
 }
 
 /**
- * Registers `onDisconnect` cleanup so a participant (and their vote) disappears
- * when the tab is closed or the connection drops.
+ * Registers `onDisconnect` cleanup for presence. The vote is not removed here
+ * on purpose: a reload keeps it, and `leaveRoom`/`resetVoting` clean it up.
  */
 async function registerPresence(roomId: string, userId: string): Promise<void> {
   const database = requireDb();
   installPresenceFlush();
   presenceTarget = { roomId, userId };
-  await Promise.all([
-    onDisconnect(ref(database, `${roomPath(roomId)}/participants/${userId}`)).remove(),
-    onDisconnect(ref(database, `${roomPath(roomId)}/votes/${userId}`)).remove(),
-  ]);
+  await onDisconnect(ref(database, `${roomPath(roomId)}/participants/${userId}`)).remove();
 }
 
 async function cancelPresence(roomId: string, userId: string): Promise<void> {
@@ -99,32 +103,27 @@ async function cancelPresence(roomId: string, userId: string): Promise<void> {
   if (presenceTarget?.roomId === roomId && presenceTarget.userId === userId) {
     presenceTarget = null;
   }
-  await Promise.all([
-    onDisconnect(ref(database, `${roomPath(roomId)}/participants/${userId}`)).cancel(),
-    onDisconnect(ref(database, `${roomPath(roomId)}/votes/${userId}`)).cancel(),
-  ]);
+  await onDisconnect(ref(database, `${roomPath(roomId)}/participants/${userId}`)).cancel();
 }
 
 /**
- * Assigns the host to the earliest participant when the room has no valid host.
- * Uses a transaction so concurrent joiners cannot both become host.
+ * Moves the host to the expected participant: the owner reclaims whenever it is
+ * present, the current host is kept while it exists, and the earliest
+ * participant takes over when the seat is empty. Uses a transaction so
+ * concurrent joiners cannot both become host.
  */
 async function ensureHost(roomId: string, room: RoomState): Promise<void> {
   const database = requireDb();
   const currentHostId = room.metadata.hostId ?? null;
-  if (currentHostId && room.participants[currentHostId]) return;
-
-  const earliest = Object.values(room.participants).sort(
-    (a, b) => a.joinedAt - b.joinedAt,
-  )[0];
-  if (!earliest) return;
+  const nextHostId = resolveHostId(room);
+  if (!nextHostId || nextHostId === currentHostId) return;
 
   await runTransaction(
     ref(database, `${roomPath(roomId)}/metadata/hostId`),
     (current) => {
       const value = typeof current === 'string' ? current : null;
-      if (value !== null && value !== currentHostId) return undefined; // someone else won
-      return earliest.id;
+      if (value !== currentHostId) return undefined; // someone else won
+      return nextHostId;
     },
   );
 }
@@ -153,6 +152,7 @@ export const createRoom: RoomService['createRoom'] = async (roomId, title, parti
       title,
       createdAt: Date.now(),
       isRevealed: false,
+      ownerId: participant.id,
       hostId: participant.id,
     },
     participants: {

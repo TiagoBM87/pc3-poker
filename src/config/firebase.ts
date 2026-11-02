@@ -3,6 +3,7 @@ import { forceLongPolling, getDatabase, type Database } from 'firebase/database'
 import {
   getAuth,
   onAuthStateChanged,
+  onIdTokenChanged,
   signInAnonymously,
   type Auth,
   type User,
@@ -60,12 +61,57 @@ export const db = database;
 export const firebaseAuth = auth;
 
 /**
+ * Last ID token seen by the SDK, cached in memory. The presence DELETE runs in
+ * `pagehide`, where nothing can be awaited, so the token must already be here.
+ */
+let cachedIdToken: string | null = null;
+
+/**
+ * App Check token cached in memory. F4-T1 feeds it from `onTokenChanged`;
+ * until then it stays null and the header is simply omitted.
+ */
+let cachedAppCheckToken: string | null = null;
+
+if (auth) {
+  onIdTokenChanged(auth, (user) => {
+    if (!user) {
+      cachedIdToken = null;
+      return;
+    }
+
+    // Resolves from cache when the SDK already refreshed the token.
+    void user
+      .getIdToken()
+      .then((token) => {
+        cachedIdToken = token;
+      })
+      .catch(() => {
+        cachedIdToken = null;
+      });
+  });
+}
+
+/**
  * Current authenticated `uid`, or `null` before the session is restored.
  * Used as the only trustworthy identity source in Firebase mode — a value
  * stored by the browser is never trusted.
  */
 export function getAuthUid(): string | null {
   return auth?.currentUser?.uid ?? null;
+}
+
+/** In-memory ID token used by the unload presence DELETE. */
+export function getCachedIdToken(): string | null {
+  return cachedIdToken;
+}
+
+/** Wired by F4-T1 so the unload request can carry `X-Firebase-AppCheck`. */
+export function setAppCheckToken(token: string | null): void {
+  cachedAppCheckToken = token;
+}
+
+export function getAppCheckToken(): string | null {
+  return cachedAppCheckToken;
 }
 
 /** Error with a Firebase auth code and a message that is safe to show. */

@@ -18,9 +18,14 @@ export interface RoomMetadata {
    */
   timerEndsAt?: number | null;
   /**
-   * Participant allowed to reveal/reset the round. It is the first person to
-   * enter the room and is handed over to the earliest remaining participant
-   * when the host leaves.
+   * Participant that created the room. It is always the host while present,
+   * even after a temporary hand-over while it was away.
+   */
+  ownerId?: string | null;
+  /**
+   * Participant allowed to reveal/reset the round. It is the owner while the
+   * owner is present and is handed over to the earliest remaining participant
+   * while the owner is away.
    */
   hostId?: string | null;
 }
