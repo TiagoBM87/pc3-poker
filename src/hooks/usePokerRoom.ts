@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ROUND_TIMER_MS } from '../config/round';
 import { calculateStats } from '../lib/stats';
 import { describeError } from '../lib/utils';
+import { filterVotesByPresence } from '../lib/votes';
 import { roomService } from '../services/roomService';
 import type { Identity, Participant, RoomState, RoomStats, VoteValue } from '../types/poker';
 
@@ -71,7 +72,7 @@ export function usePokerRoom(
     setLoading(true);
     setError(null);
 
-    const unsubscribe = roomService.subscribe(
+    return roomService.subscribe(
       roomId,
       (nextRoom) => {
         setRoom(nextRoom);
@@ -83,8 +84,6 @@ export function usePokerRoom(
         setLoading(false);
       },
     );
-
-    return unsubscribe;
   }, [roomId, enabled]);
 
   // Join (or re-join after a name/role change) as soon as the room is known.
@@ -204,7 +203,10 @@ export function usePokerRoom(
     };
   }, [enabled, roomId, timerActive, timerEndsAt]);
 
-  const rawVotes = useMemo(() => room?.votes ?? {}, [room]);
+  const rawVotes = useMemo(
+    () => filterVotesByPresence(room?.votes ?? {}, room?.participants ?? {}),
+    [room],
+  );
   const votedUserIds = useMemo(() => Object.keys(rawVotes), [rawVotes]);
   const myVote = identityId ? rawVotes[identityId] ?? null : null;
   const stats = useMemo(

@@ -16,6 +16,7 @@ interface RawRoom {
     createdAt?: unknown;
     isRevealed?: unknown;
     timerEndsAt?: unknown;
+    ownerId?: unknown;
     hostId?: unknown;
   };
   participants?: Record<string, RawParticipant>;
@@ -42,7 +43,7 @@ export function normalizeRoom(raw: unknown): RoomState | null {
 
   const votes: Record<string, VoteValue> = {};
   for (const [userId, value] of Object.entries(data.votes ?? {})) {
-    if (typeof value === 'string' && VALID_VOTES.has(value) && participants[userId]) {
+    if (typeof value === 'string' && VALID_VOTES.has(value)) {
       votes[userId] = value as VoteValue;
     }
   }
@@ -50,6 +51,11 @@ export function normalizeRoom(raw: unknown): RoomState | null {
   // Keep the stored host id even when that participant is already gone: the
   // clients need it to detect an abandoned host and claim ownership safely.
   const hostId = typeof data.metadata.hostId === 'string' ? data.metadata.hostId : null;
+
+  // Rooms created before the owner field existed fall back to the current
+  // host, so the creator keeps the room after the first deploy.
+  const storedOwnerId =
+    typeof data.metadata.ownerId === 'string' ? data.metadata.ownerId : null;
 
   return {
     metadata: {
@@ -62,6 +68,7 @@ export function normalizeRoom(raw: unknown): RoomState | null {
         data.metadata.timerEndsAt > 0
           ? data.metadata.timerEndsAt
           : null,
+      ownerId: storedOwnerId ?? hostId,
       hostId,
     },
     participants,

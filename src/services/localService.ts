@@ -1,4 +1,5 @@
 import type { RoomState } from '../types/poker';
+import { isRoomOwner, resolveHostId } from '../lib/host';
 import type { RoomService } from './contract';
 import { normalizeRoom, toStoredParticipant } from './normalize';
 
@@ -66,13 +67,6 @@ function writeRoom(roomId: string, room: RoomState) {
   channel?.postMessage({ roomId });
 }
 
-function earliestParticipantId(room: RoomState): string | null {
-  const earliest = Object.values(room.participants).sort(
-    (a, b) => a.joinedAt - b.joinedAt,
-  )[0];
-  return earliest?.id ?? null;
-}
-
 function registerPageExitCleanup(roomId: string, userId: string) {
   const key = `${roomId}:${userId}`;
   if (presenceKeys.has(key)) return;
@@ -82,12 +76,12 @@ function registerPageExitCleanup(roomId: string, userId: string) {
     const room = readRoom(roomId);
     if (!room) return;
 
+    // Presence only: the vote stays so reloading the page restores it.
     delete room.participants[userId];
-    if (room.votes) delete room.votes[userId];
 
-    if ((room.metadata.hostId ?? null) === userId) {
-      room.metadata.hostId = earliestParticipantId(room);
-    }
+    // The owner reclaims on its next join; while it is away the earliest
+    // participant keeps the room operable.
+    room.metadata.hostId = resolveHostId(room);
 
     writeRoom(roomId, room);
   };
@@ -124,6 +118,7 @@ export const createRoom: RoomService['createRoom'] = async (roomId, title, parti
       title,
       createdAt: Date.now(),
       isRevealed: false,
+      ownerId: participant.id,
       hostId: participant.id,
     },
     participants: {
@@ -145,10 +140,8 @@ export const joinRoom: RoomService['joinRoom'] = async (roomId, participant) => 
     ? { ...existing, name: participant.name, role: participant.role }
     : participant;
 
-  const hostId = room.metadata.hostId ?? null;
-  if (!hostId || !room.participants[hostId]) {
-    room.metadata.hostId = earliestParticipantId(room);
-  }
+  // Reclaim for the owner, keep the current host, or elect the earliest one.
+  room.metadata.hostId = resolveHostId(room);
 
   writeRoom(roomId, room);
   registerPageExitCleanup(roomId, participant.id);
@@ -162,9 +155,7 @@ export const leaveRoom: RoomService['leaveRoom'] = async (roomId, userId) => {
   delete room.participants[userId];
   if (room.votes) delete room.votes[userId];
 
-  if ((room.metadata.hostId ?? null) === userId) {
-    room.metadata.hostId = earliestParticipantId(room);
-  }
+  room.metadata.hostId = resolveHostId(room);
 
   writeRoom(roomId, room);
 };
@@ -173,8 +164,16 @@ export const claimHost: RoomService['claimHost'] = async (roomId, userId, staleH
   const room = readRoom(roomId);
   if (!room) return;
 
+  const ownerReclaim = isRoomOwner(room, userId) && Boolean(room.participants[userId]);
   const hostId = room.metadata.hostId ?? null;
-  if (hostId !== null && hostId !== staleHostId) return;
+
+  if (!ownerReclaim) {
+    // Without ownership only an empty seat, or the seat of a participant that
+    // is already gone, can be taken. This prevents a stray claim from
+    // stealing the host from the owner or from a live host.
+    if (hostId !== null && !(!room.participants[hostId] && hostId === staleHostId)) return;
+    if (room.metadata.ownerId && room.participants[room.metadata.ownerId]) return;
+  }
 
   room.metadata.hostId = userId;
   writeRoom(roomId, room);
