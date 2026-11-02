@@ -242,25 +242,30 @@ export const castVote: RoomService['castVote'] = async (roomId, userId, value) =
 
 export const setRevealed: RoomService['setRevealed'] = async (roomId, isRevealed) => {
   const database = requireDb();
-  await update(ref(database, `${roomPath(roomId)}/metadata`), {
-    isRevealed,
-    timerEndsAt: null,
+  await update(ref(database, roomPath(roomId)), {
+    'metadata/isRevealed': isRevealed,
+    'metadata/timerEndsAt': null,
   });
 };
 
 export const startRoundTimer: RoomService['startRoundTimer'] = async (roomId, endsAt) => {
   const database = requireDb();
-  await runTransaction(ref(database, `${roomPath(roomId)}/metadata`), (current) => {
-    if (!current || typeof current !== 'object') return current;
-    const metadata = current as Record<string, unknown>;
-    if (metadata.isRevealed === true) return current;
-    return { ...metadata, timerEndsAt: endsAt };
-  });
+
+  // Pre-check: don't start timer if the round has already been revealed.
+  const revealedSnap = await get(ref(database, `${roomPath(roomId)}/metadata/isRevealed`));
+  if (revealedSnap.exists() && revealedSnap.val() === true) return;
+
+  await runTransaction(
+    ref(database, `${roomPath(roomId)}/metadata/timerEndsAt`),
+    () => endsAt,
+  );
 };
 
 export const clearRoundTimer: RoomService['clearRoundTimer'] = async (roomId) => {
   const database = requireDb();
-  await update(ref(database, `${roomPath(roomId)}/metadata`), { timerEndsAt: null });
+  await update(ref(database, roomPath(roomId)), {
+    'metadata/timerEndsAt': null,
+  });
 };
 
 export const completeRoundTimer: RoomService['completeRoundTimer'] = async (
@@ -268,13 +273,28 @@ export const completeRoundTimer: RoomService['completeRoundTimer'] = async (
   expectedEndsAt,
 ) => {
   const database = requireDb();
-  await runTransaction(ref(database, `${roomPath(roomId)}/metadata`), (current) => {
-    if (!current || typeof current !== 'object') return current;
-    const metadata = current as Record<string, unknown>;
-    if (metadata.isRevealed === true) return current;
-    if (metadata.timerEndsAt !== expectedEndsAt) return current;
-    if (Date.now() < expectedEndsAt) return current;
-    return { ...metadata, isRevealed: true, timerEndsAt: null };
+
+  // Pre-check conditions atomically outside the transaction (minimize race window).
+  const [revealedSnap, timerSnap] = await Promise.all([
+    get(ref(database, `${roomPath(roomId)}/metadata/isRevealed`)),
+    get(ref(database, `${roomPath(roomId)}/metadata/timerEndsAt`)),
+  ]);
+  if (revealedSnap.exists() && revealedSnap.val() === true) return;
+  if (!timerSnap.exists() || timerSnap.val() !== expectedEndsAt) return;
+  if (Date.now() < expectedEndsAt) return;
+
+  // Transaction only on isRevealed — ensures only one client reveals.
+  await runTransaction(
+    ref(database, `${roomPath(roomId)}/metadata/isRevealed`),
+    (current) => {
+      if (current === true) return undefined; // already revealed
+      return true;
+    },
+  );
+
+  // Clear the timer after revealing.
+  await update(ref(database, roomPath(roomId)), {
+    'metadata/timerEndsAt': null,
   });
 };
 
